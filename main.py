@@ -2,9 +2,18 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import os
 from openai import OpenAI
+from fastapi.middleware.cors import CORSMiddleware   # ⬅️ AJOUT
 
 app = FastAPI()
 
+# Autoriser toutes les origines (pratique pour dev et tests)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # plus tard tu pourras restreindre
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Lecture de la clé OpenAI depuis Railway (Variables)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
