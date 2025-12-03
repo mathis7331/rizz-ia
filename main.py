@@ -1,21 +1,22 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import os
-from openai import OpenAI
-from fastapi.middleware.cors import CORSMiddleware   # ⬅️ AJOUT
 import json
+from openai import OpenAI
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Autoriser toutes les origines (pratique pour dev et tests)
+# CORS pour pouvoir appeler depuis le navigateur / Hoppscotch
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # plus tard tu pourras restreindre
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Lecture de la clé OpenAI depuis Railway (Variables)
+
+# Client OpenAI : clé lue depuis les variables d'environnement (Railway)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class MessageInput(BaseModel):
@@ -30,7 +31,9 @@ def root():
 def analyze_message(data: MessageInput):
     """
     RIZZ IA — analyse un message et génère les meilleures réponses.
+    Retourne un vrai JSON propre (pas un bloc de texte).
     """
+
     prompt = f"""
     Tu es RIZZ-IA, une intelligence spécialisée en séduction, rizz,
     psychologie sociale et analyse des messages.
@@ -41,16 +44,16 @@ def analyze_message(data: MessageInput):
     Contexte : "{data.context}"
     ─────────────────────────────
 
-    Donne-moi AU FORMAT JSON :
+    Donne-moi AU FORMAT JSON STRICT :
     1. un "rizz_score" de 0 à 100
-    2. un "interest" = faible / moyen / élevé
+    2. un "interest" = "faible" / "moyen" / "élevé"
     3. un objet "replies" avec :
-        - smooth
-        - humour
-        - sigma
+        - "smooth"
+        - "humour"
+        - "sigma"
     4. "advice" = conseil court
 
-    Format :
+    Format attendu, sans explication, sans texte autour, sans ``` :
     {{
       "rizz_score": 0-100,
       "interest": "faible/moyen/élevé",
@@ -66,27 +69,24 @@ def analyze_message(data: MessageInput):
     ai = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=300
+        max_tokens=300,
     )
 
     raw = ai.choices[0].message.content or ""
-
-    # Nettoyer les ``` éventuels
     content = raw.strip()
 
+    # Si l'IA renvoie encore des ```json ... ```, on nettoie
     if content.startswith("```"):
-        # On enlève les fences ```json ... ```
         parts = content.split("```")
         if len(parts) >= 2:
             content = parts[1].strip()
             if content.startswith("json"):
                 content = content[4:].lstrip("\n").strip()
 
-    # Essayer de parser en vrai JSON
     try:
-        data = json.loads(content)
+        parsed = json.loads(content)
     except Exception:
-        # Si ça plante, on renvoie juste le texte brut
-        data = {"raw": raw}
+        # Si jamais ça plante, on renvoie le brut pour debug
+        parsed = {"raw": raw}
 
-    return data
+    return parsed
