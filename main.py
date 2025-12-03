@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import os
+from openai import OpenAI
 
 app = FastAPI()
+
+# Lecture de la clé OpenAI depuis Railway (Variables)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class MessageInput(BaseModel):
     context: str | None = None
@@ -9,27 +14,52 @@ class MessageInput(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Rizz IA - MVP sans IA"}
+    return {"status": "ok", "service": "Rizz IA - Full AI Enabled"}
 
 @app.post("/analyze")
 def analyze_message(data: MessageInput):
     """
-    Pour l'instant, pas d'IA :
-    on renvoie juste une fausse analyse de test.
-    Ensuite on branchera OpenAI ici.
+    RIZZ IA — analyse un message et génère les meilleures réponses.
     """
-    message = data.message
+    prompt = f"""
+    Tu es RIZZ-IA, une intelligence spécialisée en séduction, rizz,
+    psychologie sociale et analyse des messages.
 
-    # Exemple de pseudo "analyse" sans IA:
-    response = {
-        "original_message": message,
-        "context": data.context,
-        "rizz_score": 69,  # valeur random pour test
-        "interest_estimate": "Impossible à dire sans IA (MVP)",
-        "suggested_replies": [
-            "Pour l'instant c'est une réponse de test.",
-            "On branchera Rizz IA ici bientôt 😉",
-        ],
-    }
+    Analyse ce message :
+    ─────────────────────────────
+    Message : "{data.message}"
+    Contexte : "{data.context}"
+    ─────────────────────────────
 
-    return response
+    Donne-moi AU FORMAT JSON :
+    1. un "rizz_score" de 0 à 100
+    2. un "interest" = faible / moyen / élevé
+    3. un objet "replies" avec :
+        - smooth
+        - humour
+        - sigma
+    4. "advice" = conseil court
+
+    Format :
+    {{
+      "rizz_score": 0-100,
+      "interest": "faible/moyen/élevé",
+      "replies": {{
+        "smooth": "…",
+        "humour": "…",
+        "sigma": "…"
+      }},
+      "advice": "…"
+    }}
+    """
+
+    ai = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=300
+    )
+
+    # Réponse brute de l’IA
+    raw = ai.choices[0].message.content
+
+    return {"analysis": raw}
