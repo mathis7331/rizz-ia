@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import os
 from openai import OpenAI
 from fastapi.middleware.cors import CORSMiddleware   # ⬅️ AJOUT
+import json
 
 app = FastAPI()
 
@@ -68,7 +69,24 @@ def analyze_message(data: MessageInput):
         max_tokens=300
     )
 
-    # Réponse brute de l’IA
-    raw = ai.choices[0].message.content
+    raw = ai.choices[0].message.content or ""
 
-    return {"analysis": raw}
+    # Nettoyer les ``` éventuels
+    content = raw.strip()
+
+    if content.startswith("```"):
+        # On enlève les fences ```json ... ```
+        parts = content.split("```")
+        if len(parts) >= 2:
+            content = parts[1].strip()
+            if content.startswith("json"):
+                content = content[4:].lstrip("\n").strip()
+
+    # Essayer de parser en vrai JSON
+    try:
+        data = json.loads(content)
+    except Exception:
+        # Si ça plante, on renvoie juste le texte brut
+        data = {"raw": raw}
+
+    return data
